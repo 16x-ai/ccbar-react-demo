@@ -17,7 +17,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "@16x/webphone-sdk": "^3.1.4",
+    "@16x/webphone-sdk": "^3.1.7",
     "react": "^19.3.0",
     "react-dom": "^19.3.0"
   },
