@@ -53,7 +53,7 @@ npm run dev                # 页面 http://127.0.0.1:5173 ；Token 代理 http:/
 const USERDATA = "";   // 例：'tenant=acme;agent=7'
 ```
 
-改完这行，外呼 / 内呼（含首通保护的自动重拨）都会带上。约束：
+改完这行，外呼 / 内呼都会带上。约束：
 
 - 只能**可见 ASCII**：换行能伪造出新的 SIP 头（头注入），中文等非 ASCII 不合规。中文/JSON 请先
   `encodeURIComponent` / base64，平台侧解回来。写错了会在红字行给中文提示
@@ -133,13 +133,17 @@ dev 环境里 `/get-session`、`/set-agent-status`、`/get-token` 由 Vite 转�
 
 页面的状态标签**不受它影响**：SDK 3.1.7 起 `active`（「通话中」）由**媒体连接**驱动，不再依赖 ACK。
 
-平台在**每次注册完成后的首个外呼**会回 `480 Temporarily Unavailable`（带 `Reason: Q.850;cause=16;text="NORMAL_CLEARING"`，即对端振铃前被正常清除），几秒内自愈。页面遇到这类暂时性失败（`call.failed` 且错误里含 480 / 超时 / 网络类）会**在 0.8 秒后自动重拨一次**（对齐老 ccbar 的「首通 480 Temporarily Unavailable，自动重拨一次」）：**额度按每次签入记账，一次签入只重拨 1 次**，重拨自己再失败既不会重置次数也不会重新计时；某一路接通、退签、或额度用完即停止；到那一刻已经有呼叫在响或在通话就跳过；用户手动拨号会取消当前链条。节奏与计数在 `src/lib/callRetry.ts`（有单测；默认一档时间点，需要多档例如 1.5s / 3s / 6s 时用 `options.delays` 显式传），页面只负责日志与「拨哪儿」。**根因在平台侧**，要彻底解决需平台方查同一次签入里失败/成功两条 INVITE 的 Call-ID。
+### 每次注册后的第一通外呼会回 480
+
+平台在**每次注册完成后的首个外呼**会回 `480 Temporarily Unavailable`（带 `Reason: Q.850;cause=16;text="NORMAL_CLEARING"`，即对端振铃前被正常清除），几秒内自愈。
+**页面不做任何兜底、不自动重拨**：失败就照常提示，坐席自己再拨一次即可（会自动重拨的那版已经删掉了）。
+**根因在平台侧**，要彻底解决需平台方查同一次签入里失败/成功两条 INVITE 的 Call-ID。
 
 ## React 特有的两处写法
 
 `src/lib/usePhone.ts` 与 Vue 版逐行对应，只有两处是 React 逼出来的，改这个文件时注意：
 
-- **要在 React 之外读到的值都存了一份 ref**：SDK 事件回调、首通保护的重拨链、会话来源都在 React 之外触发，闭包里读到的一定是旧的 state。所以要用 `useLiveState`（渲染读第一个返回值，逻辑里读 `xxxRef.current`，相当于 Vue 的 `.value`）；只有这五个值需要它：`connection` / `agent` / `customerPrefix` / `busy` / `config`。
+- **要在 React 之外读到的值都存了一份 ref**：SDK 事件回调、会话来源都在 React 之外触发，闭包里读到的一定是旧的 state。所以要用 `useLiveState`（渲染读第一个返回值，逻辑里读 `xxxRef.current`，相当于 Vue 的 `.value`）；只有这五个值需要它：`connection` / `agent` / `customerPrefix` / `busy` / `config`。
 - **`config` 始终是同一个可变对象**：会话来源在挂载时创建、之后一直读它（`fetchSession` 每次都要读 `host` / `extension`），所以改设置时是 `Object.assign` 原地更新、再换一份快照给渲染（`commitConfig`）。这也让 `src/lib/session.ts` 与 Vue 版保持同一份源码，不需要改签名。
 
 页面用了 `<StrictMode>`（Vite 的 React 模板默认就有）：dev 下 React 会刻意把「挂载 → 卸载 → 再挂载」跑两遍，
@@ -174,7 +178,6 @@ dev 环境里 `/get-session`、`/set-agent-status`、`/get-token` 由 Vite 转�
 src/App.tsx                     页面骨架：状态标签 + 按钮 + 日志卡片（薄，只做绑定）
 src/components/                 设置弹窗、日志卡片、来电浮层
 src/lib/usePhone.ts             页面逻辑：状态、按钮动作、SDK 事件 → 页面状态与日志
-src/lib/callRetry.ts            首通保护：480 后的重拨节奏与额度（纯函数，有单测）
 src/lib/session.ts              会话来源（默认 sessionProvider）+ 坐席状态
 src/lib/settings.ts             设置读、校验、写 localStorage
 src/lib/sipDebug.ts             SIP 原文：打开 JsSIP debug 并接住 console
