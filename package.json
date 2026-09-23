@@ -1,0 +1,32 @@
+{
+  "name": "ccbar-react-demo",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "engines": {
+    "node": ">=22.18.0"
+  },
+  "scripts": {
+    "dev": "node server/dev.mjs",
+    "dev:vite": "vite",
+    "token-server": "node server/token-server.js",
+    "build": "tsc -b && vite build",
+    "typecheck": "tsc -b --pretty false",
+    "test": "node --test tests/*.test.ts",
+    "test:package": "node --test tests/package.smoke.mjs",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@16x/webphone-sdk": "^3.1.4",
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0"
+  },
+  "devDependencies": {
+    "@types/node": "^24.13.3",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "@vitejs/plugin-react": "^6.1.1",
+    "typescript": "~6.0.2",
+    "vite": "^8.3.0"
+  }
+}
